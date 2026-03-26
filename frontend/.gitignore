@@ -12,3 +12,7 @@ npm-debug.log*
 
 # Build
 dist/
+
+# Playwright
+test-results/
+playwright-report/

@@ -108,6 +108,18 @@ export interface TimeEntry {
   client_name?: string;
 }
 
+export interface ComplianceMetric {
+  user_id: string;
+  user_name: string;
+  current_status: 'running' | 'paused';
+  session_started_at: string;
+  pause_reason?: string;
+  current_task: string;
+  project_name: string;
+  missed_checkins_24h: number;
+  last_checkin_at: string | null;
+}
+
 export interface LiveMonitorEntry {
   session_id: string;
   state: TimerState;
