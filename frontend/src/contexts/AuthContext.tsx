@@ -67,8 +67,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('pulse_token', result.token);
     setToken(result.token);
     const decoded = decodeToken(result.token);
-    setUser(decoded || result.user);
-    router.push('/dashboard');
+    const u = decoded || result.user;
+    setUser(u);
+    const dest = u?.role === 'va' ? '/va/tasks' : u?.role === 'client' ? '/client/dashboard' : '/app/dashboard';
+    router.push(dest);
   }, [router]);
 
   const logout = useCallback(() => {
@@ -89,8 +91,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('pulse_token', result.token);
     setToken(result.token);
     const decoded = decodeToken(result.token);
-    setUser(decoded || result.user);
-    router.push('/dashboard');
+    const u = decoded || result.user;
+    setUser(u);
+    const dest = u?.role === 'va' ? '/va/tasks' : u?.role === 'client' ? '/client/dashboard' : '/app/dashboard';
+    router.push(dest);
   }, [router]);
 
   return (

@@ -143,7 +143,7 @@ CREATE TABLE time_entries (
   ended_at TIMESTAMPTZ,
   seconds INT,
   note TEXT,
-  date DATE GENERATED ALWAYS AS (started_at::date) STORED
+  date DATE
 );
 
 -- checkins

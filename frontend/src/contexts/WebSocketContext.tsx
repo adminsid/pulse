@@ -1,13 +1,23 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useRef, useCallback } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useCallback,
+  useState,
+} from 'react';
 import { API_BASE_URL } from '@/lib/api';
 import { useAuth } from './AuthContext';
 
 type Handler = (data: unknown) => void;
 
+export type WsStatus = 'connected' | 'disconnected' | 'connecting';
+
 interface WebSocketContextValue {
   subscribe: (eventType: string, handler: Handler) => () => void;
+  wsStatus: WsStatus;
 }
 
 const WebSocketContext = createContext<WebSocketContextValue | null>(null);
@@ -19,6 +29,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectDelayRef = useRef(1000);
   const mountedRef = useRef(true);
+  const [wsStatus, setWsStatus] = useState<WsStatus>('disconnected');
 
   const dispatch = useCallback((eventType: string, data: unknown) => {
     const handlers = subscribersRef.current.get(eventType);
@@ -30,12 +41,14 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const connect = useCallback(() => {
     if (!token || !mountedRef.current) return;
 
+    setWsStatus('connecting');
     const wsUrl = `${API_BASE_URL.replace(/^http/, 'ws')}/ws?token=${token}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
     ws.onopen = () => {
       reconnectDelayRef.current = 1000;
+      setWsStatus('connected');
     };
 
     ws.onmessage = (event) => {
@@ -50,6 +63,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     };
 
     ws.onclose = () => {
+      setWsStatus('disconnected');
       if (!mountedRef.current) return;
       const delay = Math.min(reconnectDelayRef.current, 30000);
       reconnectDelayRef.current = Math.min(delay * 2, 30000);
@@ -67,6 +81,8 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     mountedRef.current = true;
     if (token) {
       connect();
+    } else {
+      setWsStatus('disconnected');
     }
     return () => {
       mountedRef.current = false;
@@ -86,7 +102,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <WebSocketContext.Provider value={{ subscribe }}>
+    <WebSocketContext.Provider value={{ subscribe, wsStatus }}>
       {children}
     </WebSocketContext.Provider>
   );

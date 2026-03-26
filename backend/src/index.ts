@@ -2,8 +2,9 @@ import express from 'express';
 import { createServer } from 'http';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
+import path from 'path';
 
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 import authRouter from './routes/auth';
 import adminRouter from './routes/admin';
@@ -17,7 +18,10 @@ import { setupWebSocketServer } from './websocket/server';
 import { startCheckinJob } from './jobs/checkin';
 import { startSyncJob } from './jobs/sync';
 
+import cors from 'cors';
+
 const app = express();
+app.use(cors({ origin: ['http://localhost:3000', 'http://localhost:3002'] }));
 app.use(express.json());
 
 // Strict rate limit for authentication endpoints (brute-force protection)
