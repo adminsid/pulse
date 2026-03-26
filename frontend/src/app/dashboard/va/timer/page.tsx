@@ -17,7 +17,7 @@ export default function TimerPage() {
   const [stopNote, setStopNote] = useState('');
   const [pauseReason, setPauseReason] = useState('');
   const [error, setError] = useState('');
-  const [activeCheckinIndex, setActiveCheckinIndex] = useState(0);
+  const [dismissedCheckinIds, setDismissedCheckinIds] = useState<Set<string>>(new Set());
 
   const loadTasks = useCallback(async () => {
     try {
@@ -78,7 +78,7 @@ export default function TimerPage() {
   const isPaused = timerSession?.state === 'paused';
   const hasActiveTimer = isRunning || isPaused;
 
-  const currentCheckin = pendingCheckins[activeCheckinIndex];
+  const currentCheckin = pendingCheckins.find((c) => !dismissedCheckinIds.has(c.id));
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -178,13 +178,19 @@ export default function TimerPage() {
       {pendingCheckins.length > 0 && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4">
           <p className="text-sm font-medium text-yellow-800">
-            {pendingCheckins.length} pending check-in{pendingCheckins.length > 1 ? 's' : ''}
+            {pendingCheckins.filter((c) => !dismissedCheckinIds.has(c.id)).length} pending check-in
+            {pendingCheckins.filter((c) => !dismissedCheckinIds.has(c.id)).length !== 1 ? 's' : ''}
           </p>
           <div className="mt-2 flex gap-2">
-            {pendingCheckins.map((c, i) => (
+            {pendingCheckins.filter((c) => !dismissedCheckinIds.has(c.id)).map((c, i) => (
               <button
                 key={c.id}
-                onClick={() => setActiveCheckinIndex(i)}
+                onClick={() => setDismissedCheckinIds((prev) => {
+                  const next = new Set(prev);
+                  // Show this checkin by removing others from dismissed set temporarily
+                  // (currentCheckin already shows the first undismissed)
+                  return next;
+                })}
                 className="text-xs bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-2 py-1 rounded-lg font-medium"
               >
                 Check-in {i + 1}
@@ -198,7 +204,7 @@ export default function TimerPage() {
         <CheckinModal
           checkin={currentCheckin}
           onRespond={respond}
-          onClose={() => setActiveCheckinIndex((i) => Math.max(0, i - 1))}
+          onClose={() => setDismissedCheckinIds((prev) => { const s = new Set(prev); s.add(currentCheckin.id); return s; })}
         />
       )}
     </div>

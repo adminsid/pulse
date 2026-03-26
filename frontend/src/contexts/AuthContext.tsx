@@ -22,6 +22,9 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+// Decodes the JWT payload for display purposes only.
+// Signature verification is intentionally skipped here — all security-critical
+// decisions are enforced server-side via the Bearer token on every API request.
 function decodeToken(token: string): User | null {
   try {
     const payload = JSON.parse(
