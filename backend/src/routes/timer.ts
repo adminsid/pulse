@@ -243,4 +243,3 @@ router.get('/current', async (req: Request, res: Response): Promise<void> => {
 });
 
 export default router;
-
