@@ -158,6 +158,12 @@ export const api = {
         snapshot_at: string;
         active_timers: import('./types').LiveMonitorEntry[];
       }>('/api/reports/live-monitor'),
+    getCompliance: (params?: Record<string, string>) => {
+      const qs = params ? new URLSearchParams(params).toString() : '';
+      return apiFetch<import('./types').ComplianceMetric[]>(
+        `/api/reports/compliance${qs ? `?${qs}` : ''}`
+      );
+    },
   },
   projects: {
     get: (id: string) => apiFetch<import('./types').Project>(`/api/projects/${id}`),

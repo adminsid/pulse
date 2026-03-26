@@ -178,4 +178,62 @@ router.get('/live-monitor', async (req: Request, res: Response): Promise<void> =
   }
 });
 
+// GET /api/reports/compliance — compliance metrics per VA (missed check-ins, last check-in, current status)
+router.get('/compliance', async (req: Request, res: Response): Promise<void> => {
+  const { workspace_id, role, id: userId } = req.user!;
+  const { project_id } = req.query;
+
+  try {
+    const params: unknown[] = [workspace_id];
+    let projectFilter = '';
+
+    if (role === 'client') {
+      // Clients only see VAs working on their assigned projects
+      params.push(userId);
+      projectFilter = `AND EXISTS (
+        SELECT 1 FROM project_members pm2
+        JOIN projects p2 ON p2.id = pm2.project_id
+        WHERE pm2.user_id = $2 AND p2.id = t.project_id AND p2.workspace_id = $1
+      )`;
+    }
+
+    if (project_id) {
+      params.push(project_id);
+      projectFilter += ` AND t.project_id = $${params.length}`;
+    }
+
+    const result = await pool.query(
+      `SELECT
+         u.id AS user_id,
+         u.full_name AS user_name,
+         ts.state AS current_status,
+         ts.started_at AS session_started_at,
+         ts.pause_reason,
+         t.title AS current_task,
+         p.name AS project_name,
+         (
+           SELECT COUNT(*)::INT FROM checkins c2
+           WHERE c2.user_id = u.id
+             AND c2.status = 'missed'
+             AND c2.due_at > NOW() - INTERVAL '24 hours'
+         ) AS missed_checkins_24h,
+         (
+           SELECT MAX(c3.responded_at) FROM checkins c3
+           WHERE c3.user_id = u.id AND c3.status = 'responded'
+         ) AS last_checkin_at
+       FROM users u
+       JOIN timer_sessions ts ON ts.user_id = u.id AND ts.state IN ('running','paused')
+       JOIN tasks t ON t.id = ts.task_id
+       JOIN projects p ON p.id = t.project_id
+       WHERE p.workspace_id = $1
+         ${projectFilter}
+       ORDER BY u.full_name`,
+      params
+    );
+    res.json(result.rows);
+  } catch {
+    res.status(500).json({ error: 'Failed to get compliance metrics' });
+  }
+});
+
 export default router;
