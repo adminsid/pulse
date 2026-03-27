@@ -41,8 +41,30 @@ router.get('/projects/:projectId/tasks', async (req: Request, res: Response): Pr
   }
 });
 
+// GET /api/tasks/mine — tasks assigned to the current user (all projects)
+router.get('/tasks/mine', async (req: Request, res: Response): Promise<void> => {
+  const { id: userId, workspace_id } = req.user!;
+  try {
+    const result = await pool.query(
+      `SELECT t.*, u.full_name AS assignee_name, p.name AS project_name
+       FROM tasks t
+       LEFT JOIN users u ON u.id = t.assignee_user_id
+       JOIN projects p ON p.id = t.project_id
+       WHERE t.assignee_user_id = $1
+         AND p.workspace_id = $2
+         AND t.status NOT IN ('canceled')
+       ORDER BY t.updated_at DESC
+       LIMIT 200`,
+      [userId, workspace_id]
+    );
+    res.json(result.rows);
+  } catch {
+    res.status(500).json({ error: 'Failed to list tasks' });
+  }
+});
+
 // GET /api/tasks/:id
-router.get('/:id', async (req: Request, res: Response): Promise<void> => {
+router.get('/tasks/:id', async (req: Request, res: Response): Promise<void> => {
   const { role, id: userId, workspace_id } = req.user!;
   try {
     let result;
@@ -77,7 +99,7 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
 });
 
 // PUT /api/tasks/:id/status
-router.put('/:id/status', async (req: Request, res: Response): Promise<void> => {
+router.put('/tasks/:id/status', async (req: Request, res: Response): Promise<void> => {
   const { status } = req.body;
   if (!status) {
     res.status(400).json({ error: 'Status is required' });
@@ -101,7 +123,7 @@ router.put('/:id/status', async (req: Request, res: Response): Promise<void> => 
 });
 
 // POST /api/tasks — create task manually
-router.post('/', requireRole('admin', 'manager', 'va'), async (req: Request, res: Response): Promise<void> => {
+router.post('/tasks', requireRole('admin', 'manager', 'va'), async (req: Request, res: Response): Promise<void> => {
   const { project_id, title, description, assignee_user_id, due_date, priority } = req.body;
   if (!project_id || !title) {
     res.status(400).json({ error: 'project_id and title are required' });

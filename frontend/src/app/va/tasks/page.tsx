@@ -23,12 +23,8 @@ export default function VATasksPage() {
   const loadTasks = useCallback(async () => {
     setIsLoading(true);
     try {
-      const mine = await api.tasks.listMine().catch(() => [] as Task[]);
-      if (mine.length > 0) { setTasks(mine); return; }
-      // Fallback: get all projects and fetch tasks
-      const projects = await api.admin.getProjects().catch(() => []);
-      const all = await Promise.all(projects.map((p) => api.tasks.list(p.id).catch(() => [] as Task[])));
-      setTasks(all.flat());
+      const mine = await api.tasks.listMine();
+      setTasks(mine || []);
     } catch { setTasks([]); } finally { setIsLoading(false); }
   }, []);
 

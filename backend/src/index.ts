@@ -48,15 +48,16 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', ts: new Date() });
 });
 
-// Routes
+// Routes — specific paths MUST come before the broad /api catch-all (tasksRouter)
 app.use('/api/auth', authLimiter, authRouter);
 app.use('/api/admin', apiLimiter, adminRouter);
 app.use('/api/projects', apiLimiter, projectsRouter);
-app.use('/api', apiLimiter, tasksRouter);
 app.use('/api/timer', apiLimiter, timerRouter);
 app.use('/api/checkins', apiLimiter, checkinsRouter);
 app.use('/api/reports', apiLimiter, reportsRouter);
 app.use('/api/integrations', apiLimiter, integrationsRouter);
+// Broad /api catch-all for tasks — must be LAST among /api/* routes
+app.use('/api', apiLimiter, tasksRouter);
 
 // 404 handler
 app.use((_req, res) => {
