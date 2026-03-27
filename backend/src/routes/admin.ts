@@ -79,8 +79,14 @@ router.put('/users/:id', async (req: Request, res: Response): Promise<void> => {
 
 router.delete('/users/:id', async (req: Request, res: Response): Promise<void> => {
   try {
+    // Prevent self-deletion
+    if (req.params.id === req.user!.id) {
+      res.status(400).json({ error: 'Cannot delete your own account' });
+      return;
+    }
+
     const result = await pool.query(
-      `UPDATE users SET is_active = FALSE
+      `DELETE FROM users
        WHERE id = $1 AND workspace_id = $2
        RETURNING id`,
       [req.params.id, req.user!.workspace_id]
@@ -89,9 +95,9 @@ router.delete('/users/:id', async (req: Request, res: Response): Promise<void> =
       res.status(404).json({ error: 'User not found' });
       return;
     }
-    res.json({ message: 'User deactivated' });
+    res.json({ message: 'User deleted successfully' });
   } catch (err: unknown) {
-    res.status(500).json({ error: 'Failed to deactivate user' });
+    res.status(500).json({ error: 'Failed to delete user' });
   }
 });
 

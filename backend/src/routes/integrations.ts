@@ -22,7 +22,10 @@ router.get('/:integrationId/containers', async (req: Request, res: Response): Pr
       [req.params.integrationId, req.user!.workspace_id]
     );
     const integration = result.rows[0];
+    console.log(`[integrations] listContainers for ${req.params.integrationId}: found in DB? ${!!integration}`);
+    
     if (!integration) {
+      console.warn(`[integrations] Integration ${req.params.integrationId} NOT FOUND or NOT ACTIVE for workspace ${req.user!.workspace_id}`);
       res.status(404).json({ error: 'Integration not found' });
       return;
     }

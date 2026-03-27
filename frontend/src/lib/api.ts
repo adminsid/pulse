@@ -59,6 +59,10 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify(data),
       }),
+    deleteUser: (id: string) =>
+      apiFetch<void>(`/api/admin/users/${id}`, {
+        method: 'DELETE',
+      }),
     getClients: () => apiFetch<import('./types').Client[]>('/api/admin/clients'),
     createClient: (data: { name: string; contact_email?: string }) =>
       apiFetch<import('./types').Client>('/api/admin/clients', {

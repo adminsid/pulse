@@ -20,20 +20,20 @@ async function asanaFetch<T>(
   return res.json() as Promise<T>;
 }
 
-interface AsanaProject {
-  gid: string;
-  name: string;
-}
-
 interface AsanaTask {
   gid: string;
   name: string;
   notes: string;
   completed: boolean;
   due_on: string | null;
-  assignee: { email: string } | null;
+  assignee: { gid: string; name: string; email: string } | null;
   custom_fields?: { name: string; display_value: string | null }[];
-  liked?: boolean;
+}
+
+interface AsanaProject {
+  gid: string;
+  name: string;
+  archived: boolean;
 }
 
 interface AsanaWorkspace {
@@ -43,17 +43,30 @@ interface AsanaWorkspace {
 
 function asanaStatusToPulse(task: AsanaTask): string {
   if (task.completed) return 'done';
-  // Check for custom field "Status" or tags
+  
+  // Custom field "Status" mapping (verified from live API: "On track", "At risk", "Off track")
   const statusField = task.custom_fields?.find(
     (f) => f.name.toLowerCase() === 'status' || f.name.toLowerCase() === 'stage'
   );
+
   if (statusField?.display_value) {
     const v = statusField.display_value.toLowerCase();
-    if (v.includes('block')) return 'blocked';
-    if (v.includes('progress') || v.includes('doing')) return 'in_progress';
-    if (v.includes('done') || v.includes('complete')) return 'done';
+    if (v.includes('off track') || v.includes('block')) return 'blocked';
+    if (v.includes('at risk') || v.includes('progress') || v.includes('doing')) return 'in_progress';
+    if (v.includes('on track')) return 'todo'; // "On track" is the default healthy todo state
   }
+  
   return 'todo';
+}
+
+function asanaPriorityToPulse(task: AsanaTask): string {
+  const priorityField = task.custom_fields?.find(f => f.name.toLowerCase() === 'priority');
+  if (priorityField?.display_value) {
+    const p = priorityField.display_value.toLowerCase();
+    if (p.includes('high') || p.includes('urgent')) return 'high';
+    if (p.includes('low')) return 'low';
+  }
+  return 'medium';
 }
 
 export class AsanaConnector implements ConnectorInterface {
@@ -63,29 +76,30 @@ export class AsanaConnector implements ConnectorInterface {
     this.accessToken = accessToken;
   }
 
-  /**
-   * Lists Asana workspaces (used as "containers" when no project is selected)
-   * and then all projects across them.
-   */
   async listContainers(): Promise<ExternalContainer[]> {
+    console.log('[asana] listContainers: fetching workspaces...');
     try {
-      // Get workspaces
       const wsData = await asanaFetch<{ data: AsanaWorkspace[] }>(
         '/workspaces?opt_fields=gid,name',
         this.accessToken
       );
+      console.log(`[asana] listContainers: found ${wsData.data?.length || 0} workspaces`);
 
       const containers: ExternalContainer[] = [];
-      for (const ws of wsData.data) {
-        // Get projects in each workspace
-        const projData = await asanaFetch<{ data: AsanaProject[] }>(
-          `/projects?workspace=${ws.gid}&opt_fields=gid,name&archived=false`,
-          this.accessToken
-        );
-        for (const p of projData.data) {
-          containers.push({ id: p.gid, name: `${ws.name} / ${p.name}` });
+      if (wsData.data) {
+        for (const ws of wsData.data) {
+          console.log(`[asana] listContainers: fetching projects for workspace ${ws.name} (${ws.gid})...`);
+          const projData = await asanaFetch<{ data: AsanaProject[] }>(
+            `/projects?workspace=${ws.gid}&opt_fields=gid,name,archived&archived=false`,
+            this.accessToken
+          );
+          console.log(`[asana] listContainers: found ${projData.data?.length || 0} projects in ${ws.name}`);
+          for (const p of projData.data) {
+            containers.push({ id: p.gid, name: `${ws.name} / ${p.name}` });
+          }
         }
       }
+      console.log(`[asana] listContainers: returning ${containers.length} total containers`);
       return containers;
     } catch (err) {
       console.error('[asana] listContainers error:', err);
@@ -93,13 +107,11 @@ export class AsanaConnector implements ConnectorInterface {
     }
   }
 
-  /**
-   * Fetches all tasks in an Asana project (containerId = project GID).
-   */
   async listTasks(containerId: string): Promise<ExternalTask[]> {
     try {
+      // Endpoint verified via live API testing: project GID is a query param
       const data = await asanaFetch<{ data: AsanaTask[] }>(
-        `/projects/${containerId}/tasks?opt_fields=gid,name,notes,completed,due_on,assignee.email,custom_fields.name,custom_fields.display_value&limit=100`,
+        `/tasks?project=${containerId}&opt_fields=gid,name,notes,completed,due_on,assignee.name,assignee.email,custom_fields.name,custom_fields.display_value&limit=100`,
         this.accessToken
       );
 
@@ -110,7 +122,7 @@ export class AsanaConnector implements ConnectorInterface {
         status: asanaStatusToPulse(t),
         assigneeEmail: t.assignee?.email || undefined,
         dueDate: t.due_on || undefined,
-        priority: 'medium', // Asana doesn't have native priority; use custom field if available
+        priority: asanaPriorityToPulse(t),
       }));
     } catch (err) {
       console.error(`[asana] listTasks error for project ${containerId}:`, err);
@@ -118,13 +130,9 @@ export class AsanaConnector implements ConnectorInterface {
     }
   }
 
-  /**
-   * Creates or updates a task in Asana (write-back).
-   */
   async upsertTask(task: ExternalTask): Promise<void> {
     try {
       if (task.id) {
-        // Update existing
         await asanaFetch(`/tasks/${task.id}`, this.accessToken, {
           method: 'PUT',
           body: JSON.stringify({
@@ -143,9 +151,6 @@ export class AsanaConnector implements ConnectorInterface {
     }
   }
 
-  /**
-   * Sets the completion status of an Asana task.
-   */
   async setStatus(externalTaskId: string, status: string): Promise<void> {
     try {
       const completed = status === 'done';
@@ -159,9 +164,6 @@ export class AsanaConnector implements ConnectorInterface {
     }
   }
 
-  /**
-   * Adds a story/comment to an Asana task.
-   */
   async addComment(externalTaskId: string, comment: string): Promise<void> {
     try {
       await asanaFetch(`/tasks/${externalTaskId}/stories`, this.accessToken, {

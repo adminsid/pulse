@@ -49,6 +49,21 @@ export default function UsersPage() {
     } catch { }
   };
 
+  const handleRoleChange = async (user: User, newRole: string) => {
+    try {
+      await api.admin.updateUser(user.id, { role: newRole as any });
+      await loadUsers();
+    } catch { }
+  };
+
+  const handleDelete = async (user: User) => {
+    if (!window.confirm(`Are you sure you want to PERMANENTLY delete ${user.full_name}?`)) return;
+    try {
+      await api.admin.deleteUser(user.id);
+      await loadUsers();
+    } catch (err) { alert(err instanceof Error ? err.message : 'Delete failed'); }
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -80,16 +95,32 @@ export default function UsersPage() {
                 <tr key={u.id} className="border-b border-border hover:bg-muted-fg/20 transition-colors">
                   <td className="py-3 px-4 font-medium text-fg">{u.full_name}</td>
                   <td className="py-3 px-4 text-muted">{u.email}</td>
-                  <td className="py-3 px-4 text-fg capitalize">{u.role}</td>
+                  <td className="py-3 px-4">
+                    <select
+                      value={u.role}
+                      onChange={(e) => handleRoleChange(u, e.target.value)}
+                      className="bg-transparent border-none text-fg focus:ring-0 p-0 cursor-pointer capitalize"
+                    >
+                      <option value="admin">Admin</option>
+                      <option value="manager">Manager</option>
+                      <option value="va">VA</option>
+                      <option value="client">Client</option>
+                    </select>
+                  </td>
                   <td className="py-3 px-4">
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${u.is_active !== false ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
                       {u.is_active !== false ? 'Active' : 'Inactive'}
                     </span>
                   </td>
                   <td className="py-3 px-4">
-                    <button onClick={() => handleToggleActive(u)} className="text-xs text-accent hover:opacity-70 font-medium">
-                      {u.is_active !== false ? 'Deactivate' : 'Activate'}
-                    </button>
+                    <div className="flex gap-4">
+                      <button onClick={() => handleToggleActive(u)} className="text-xs text-accent hover:opacity-70 font-medium whitespace-nowrap">
+                        {u.is_active !== false ? 'Deactivate' : 'Activate'}
+                      </button>
+                      <button onClick={() => handleDelete(u)} className="text-xs text-red-500 hover:opacity-70 font-medium whitespace-nowrap">
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
