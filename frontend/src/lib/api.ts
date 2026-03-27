@@ -178,6 +178,20 @@ export const api = {
         body: JSON.stringify({ mappings }),
       }),
   },
+  integrations: {
+    listContainers: (integrationId: string) =>
+      apiFetch<{ id: string; name: string }[]>(`/api/integrations/${integrationId}/containers`),
+    linkProject: (data: { integration_id: string; project_id: string; external_container_id: string }) =>
+      apiFetch<unknown>('/api/integrations/link', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    triggerSync: (projectId: string) =>
+      apiFetch<{ message: string }>(`/api/integrations/projects/${projectId}/sync`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      }),
+  },
 };
 
 export const API_BASE_URL = API_BASE;
