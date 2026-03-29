@@ -42,7 +42,7 @@ test.describe('Login page', () => {
 
 test.describe('Dashboard redirect', () => {
   test('redirects unauthenticated users to login', async ({ page }) => {
-    await page.goto('/dashboard');
+    await page.goto('/app/dashboard');
     await expect(page).toHaveURL(/\/login/);
   });
 
@@ -52,7 +52,7 @@ test.describe('Dashboard redirect', () => {
   });
 });
 
-test.describe('Dashboard with mocked auth', () => {
+test.describe('Admin dashboard with mocked auth', () => {
   test.beforeEach(async ({ page }) => {
     // Inject a valid-looking JWT for an admin user
     const payload = {
@@ -78,7 +78,7 @@ test.describe('Dashboard with mocked auth', () => {
       } else if (url.includes('/api/reports/live-monitor')) {
         await route.fulfill({ json: { snapshot_at: new Date().toISOString(), active_timers: [] } });
       } else if (url.includes('/api/reports/compliance')) {
-        await route.fulfill({ json: [] });
+        await route.fulfill({ json: { overall: 0, by_user: [] } });
       } else {
         await route.fulfill({ json: [] });
       }
@@ -90,7 +90,7 @@ test.describe('Dashboard with mocked auth', () => {
   });
 
   test('admin dashboard loads with nav items', async ({ page }) => {
-    await page.goto('/dashboard');
+    await page.goto('/app/dashboard');
     // The sidebar nav contains admin nav links — check by nav element
     const sidebar = page.locator('nav');
     await expect(sidebar.getByRole('link', { name: 'Users' })).toBeVisible();
@@ -108,14 +108,14 @@ test.describe('Dashboard with mocked auth', () => {
       });
     });
 
-    await page.goto('/dashboard/admin/users');
+    await page.goto('/app/users');
     await expect(page.locator('h1')).toContainText('Users');
     await expect(page.getByRole('button', { name: '+ Create User' })).toBeVisible();
     await expect(page.getByText('Test VA')).toBeVisible();
   });
 
   test('live monitor page renders', async ({ page }) => {
-    await page.goto('/dashboard/manager/monitor');
+    await page.goto('/app/monitor');
     await expect(page.getByRole('heading', { name: 'Live Monitor' })).toBeVisible();
     await expect(page.getByText('Active VAs')).toBeVisible();
   });
@@ -154,15 +154,10 @@ test.describe('VA dashboard with mocked auth', () => {
     }, fakeToken);
   });
 
-  test('VA timer page shows start timer UI', async ({ page }) => {
-    await page.goto('/dashboard/va/timer');
-    await expect(page.locator('h1')).toContainText('Timer');
-    await expect(page.getByText('No active timer')).toBeVisible();
-    await expect(page.getByRole('button', { name: '▶ Start Timer' })).toBeVisible();
-  });
+
 
   test('VA tasks page renders', async ({ page }) => {
-    await page.goto('/dashboard/va/tasks');
+    await page.goto('/va/tasks');
     // Check the heading specifically, not the nav link
     await expect(page.getByRole('heading', { name: 'My Tasks' })).toBeVisible();
   });

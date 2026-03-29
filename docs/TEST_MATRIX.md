@@ -87,8 +87,9 @@ Record:
 - [ ] Typecheck passes
 - [ ] Build passes
 
-If present:
-- [ ] Playwright/Cypress smoke: login → load dashboard
+- [ ] Playwright Smoke Tests (smoke.test.ts)
+- [ ] Playwright Functional Flows (functional.test.ts)
+- [ ] Backend Sync Integration (sync.integration.test.ts)
 
 ---
 

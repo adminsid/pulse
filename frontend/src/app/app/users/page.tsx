@@ -3,6 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api';
 import type { User } from '@/lib/types';
+import DataTable from '@/components/ui/DataTable';
+import { useAuth } from '@/contexts/AuthContext';
+
 
 interface CreateUserForm {
   full_name: string;
@@ -12,6 +15,7 @@ interface CreateUserForm {
 }
 
 export default function UsersPage() {
+  const { impersonate, realUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -76,58 +80,55 @@ export default function UsersPage() {
         </button>
       </div>
 
-      {isLoading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent" /></div>
-      ) : (
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="border-b border-border">
-              <tr>
-                {['Name', 'Email', 'Role', 'Status', 'Actions'].map((h) => (
-                  <th key={h} className="text-left py-3 px-4 font-medium text-muted text-xs uppercase tracking-wide">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {users.length === 0 ? (
-                <tr><td colSpan={5} className="text-center py-8 text-muted">No users yet. Create one to get started.</td></tr>
-              ) : users.map((u) => (
-                <tr key={u.id} className="border-b border-border hover:bg-muted-fg/20 transition-colors">
-                  <td className="py-3 px-4 font-medium text-fg">{u.full_name}</td>
-                  <td className="py-3 px-4 text-muted">{u.email}</td>
-                  <td className="py-3 px-4">
-                    <select
-                      value={u.role}
-                      onChange={(e) => handleRoleChange(u, e.target.value)}
-                      className="bg-transparent border-none text-fg focus:ring-0 p-0 cursor-pointer capitalize"
-                    >
-                      <option value="admin">Admin</option>
-                      <option value="manager">Manager</option>
-                      <option value="va">VA</option>
-                      <option value="client">Client</option>
-                    </select>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${u.is_active !== false ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
-                      {u.is_active !== false ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="flex gap-4">
-                      <button onClick={() => handleToggleActive(u)} className="text-xs text-accent hover:opacity-70 font-medium whitespace-nowrap">
-                        {u.is_active !== false ? 'Deactivate' : 'Activate'}
-                      </button>
-                      <button onClick={() => handleDelete(u)} className="text-xs text-red-500 hover:opacity-70 font-medium whitespace-nowrap">
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataTable<User>
+        data={users}
+        isLoading={isLoading}
+        columns={[
+          { header: 'Name', accessor: 'full_name', className: 'font-semibold text-fg' },
+          { header: 'Email', accessor: 'email', className: 'text-muted' },
+          { 
+            header: 'Role', 
+            accessor: (u) => (
+              <select
+                value={u.role}
+                onChange={(e) => handleRoleChange(u, e.target.value)}
+                className="bg-transparent border-none text-fg focus:ring-0 p-0 cursor-pointer capitalize text-xs font-medium"
+              >
+                <option value="admin">Admin</option>
+                <option value="manager">Manager</option>
+                <option value="va">VA</option>
+                <option value="client">Client</option>
+              </select>
+            )
+          },
+          { 
+            header: 'Status', 
+            accessor: (u) => (
+              <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${u.is_active !== false ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
+                {u.is_active !== false ? 'Active' : 'Inactive'}
+              </span>
+            )
+          },
+          { 
+            header: 'Actions', 
+            accessor: (u) => (
+              <div className="flex gap-3 items-center">
+                {u.id !== realUser?.id && (
+                    <button onClick={() => impersonate(u.id)} className="text-[10px] text-accent hover:underline font-bold uppercase tracking-wider">
+                    View As
+                    </button>
+                )}
+                <button onClick={() => handleToggleActive(u)} className="text-[10px] text-muted hover:text-fg font-bold uppercase tracking-wider">
+                  {u.is_active !== false ? 'Deactivate' : 'Activate'}
+                </button>
+                <button onClick={() => handleDelete(u)} className="text-[10px] text-red-500 hover:text-red-600 font-bold uppercase tracking-wider">
+                  Delete
+                </button>
+              </div>
+            )
+          },
+        ]}
+      />
 
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

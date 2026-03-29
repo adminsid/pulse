@@ -14,6 +14,7 @@ import timerRouter from './routes/timer';
 import checkinsRouter from './routes/checkins';
 import reportsRouter from './routes/reports';
 import integrationsRouter from './routes/integrations';
+import goalsRouter from './routes/goals';
 
 import { setupWebSocketServer } from './websocket/server';
 import { startCheckinJob } from './jobs/checkin';
@@ -56,6 +57,7 @@ app.use('/api/timer', apiLimiter, timerRouter);
 app.use('/api/checkins', apiLimiter, checkinsRouter);
 app.use('/api/reports', apiLimiter, reportsRouter);
 app.use('/api/integrations', apiLimiter, integrationsRouter);
+app.use('/api', apiLimiter, goalsRouter);
 // Broad /api catch-all for tasks — must be LAST among /api/* routes
 app.use('/api', apiLimiter, tasksRouter);
 

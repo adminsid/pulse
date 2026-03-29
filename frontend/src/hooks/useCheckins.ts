@@ -30,8 +30,28 @@ export function useCheckins(): UseCheckinsResult {
 
   // Subscribe to checkin_due WS events
   useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    }
+
     const unsub = subscribe('checkin_due', (data) => {
       const checkin = data as Checkin;
+      
+      // Trigger browser notification
+      if (typeof window !== 'undefined' && Notification.permission === 'granted') {
+          const n = new Notification('Pulse Check-in Required', {
+              body: 'Time to check in! Click to respond.',
+              tag: 'checkin-' + checkin.id,
+              requireInteraction: true
+          });
+          n.onclick = () => {
+              window.focus();
+              n.close();
+          };
+      }
+
       setPendingCheckins((prev) => {
         if (prev.find((c) => c.id === checkin.id)) return prev;
         return [...prev, checkin];

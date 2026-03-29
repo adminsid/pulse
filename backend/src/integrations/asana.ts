@@ -164,6 +164,19 @@ export class AsanaConnector implements ConnectorInterface {
     }
   }
 
+  async setAssignee(externalTaskId: string, email: string): Promise<void> {
+    try {
+      // Asana allows setting assignee via email in the update task body
+      await asanaFetch(`/tasks/${externalTaskId}`, this.accessToken, {
+        method: 'PUT',
+        body: JSON.stringify({ data: { assignee: email } }),
+      });
+    } catch (err) {
+      console.error(`[asana] setAssignee error for task ${externalTaskId}:`, err);
+      // Don't throw if user not found in asana, just log it as Pulse can still have local assignment
+    }
+  }
+
   async addComment(externalTaskId: string, comment: string): Promise<void> {
     try {
       await asanaFetch(`/tasks/${externalTaskId}/stories`, this.accessToken, {

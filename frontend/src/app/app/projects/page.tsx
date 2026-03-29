@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import type { Project, Client } from '@/lib/types';
+import DataTable from '@/components/ui/DataTable';
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -52,34 +53,17 @@ export default function ProjectsPage() {
         </button>
       </div>
 
-      {isLoading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent" /></div>
-      ) : (
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="border-b border-border">
-              <tr>
-                {['Name', 'Client', 'SoR Provider', 'Created'].map((h) => (
-                  <th key={h} className="text-left py-3 px-4 font-medium text-muted text-xs uppercase tracking-wide">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {projects.length === 0 ? (
-                <tr><td colSpan={4} className="text-center py-8 text-muted">No projects yet.</td></tr>
-              ) : projects.map((p) => (
-                <tr key={p.id} className="border-b border-border hover:bg-muted-fg/20 cursor-pointer transition-colors"
-                  onClick={() => router.push(`/app/projects/${p.id}`)}>
-                  <td className="py-3 px-4 font-medium text-fg">{p.name}</td>
-                  <td className="py-3 px-4 text-muted">{p.client_name || '—'}</td>
-                  <td className="py-3 px-4 text-muted capitalize">{p.sor_provider || '—'}</td>
-                  <td className="py-3 px-4 text-muted text-xs">{new Date(p.created_at).toLocaleDateString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataTable<Project>
+        data={projects}
+        isLoading={isLoading}
+        onRowClick={(p) => router.push(`/app/projects/${p.id}`)}
+        columns={[
+          { header: 'Project Name', accessor: 'name', className: 'font-semibold text-fg' },
+          { header: 'Client', accessor: (p) => <span className="text-muted">{p.client_name || '—'}</span> },
+          { header: 'SoR Provider', accessor: (p) => <span className="capitalize px-2 py-0.5 bg-muted-fg/10 rounded text-xs">{p.sor_provider || 'None'}</span> },
+          { header: 'Created', accessor: (p) => <span className="text-xs text-muted">{new Date(p.created_at).toLocaleDateString()}</span> },
+        ]}
+      />
 
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

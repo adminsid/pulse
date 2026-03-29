@@ -7,10 +7,14 @@ import type { User } from '@/lib/types';
 
 interface AuthContextValue {
   user: User | null;
+  realUser: User | null;
+  isImpersonating: boolean;
   token: string | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  impersonate: (userId: string) => void;
+  stopImpersonating: () => void;
   register: (data: {
     email: string;
     password: string;
@@ -22,9 +26,6 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-// Decodes the JWT payload for display purposes only.
-// Signature verification is intentionally skipped here — all security-critical
-// decisions are enforced server-side via the Bearer token on every API request.
 function decodeToken(token: string): User | null {
   try {
     const payload = JSON.parse(
@@ -44,23 +45,49 @@ function decodeToken(token: string): User | null {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [realUser, setRealUser] = useState<User | null>(null);
+  const [isImpersonating, setIsImpersonating] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
+  const loadImpersonatedUser = useCallback(async (id: string, workspaceId: string) => {
+    try {
+        // We can't easily "get" the impersonated user's role without an API call 
+        // that is itself impersonated. 
+        // For now, we'll suggest refreshing the page or using a simple mechanism.
+        const users = await api.admin.getUsers();
+        const found = users.find(u => u.id === id);
+        if (found) {
+            setUser(found);
+            setIsImpersonating(true);
+        }
+    } catch {
+        localStorage.removeItem('pulse_impersonate_id');
+        setIsImpersonating(false);
+    }
+  }, []);
+
   useEffect(() => {
     const stored = localStorage.getItem('pulse_token');
+    const impId = localStorage.getItem('pulse_impersonate_id');
+    
     if (stored) {
       const decoded = decodeToken(stored);
       if (decoded) {
         setToken(stored);
+        setRealUser(decoded);
         setUser(decoded);
+
+        if (impId && decoded.role === 'admin') {
+            loadImpersonatedUser(impId, decoded.workspace_id);
+        }
       } else {
         localStorage.removeItem('pulse_token');
       }
     }
     setIsLoading(false);
-  }, []);
+  }, [loadImpersonatedUser]);
 
   const login = useCallback(async (email: string, password: string) => {
     const result = await api.auth.login(email, password);
@@ -69,16 +96,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const decoded = decodeToken(result.token);
     const u = decoded || result.user;
     setUser(u);
+    setRealUser(u);
     const dest = u?.role === 'va' ? '/va/tasks' : u?.role === 'client' ? '/client/dashboard' : '/app/dashboard';
     router.push(dest);
   }, [router]);
 
   const logout = useCallback(() => {
     localStorage.removeItem('pulse_token');
+    localStorage.removeItem('pulse_impersonate_id');
     setToken(null);
     setUser(null);
+    setRealUser(null);
+    setIsImpersonating(false);
     router.push('/login');
   }, [router]);
+
+  const impersonate = useCallback((userId: string) => {
+      localStorage.setItem('pulse_impersonate_id', userId);
+      window.location.reload(); // Simplest way to re-init everything with header
+  }, []);
+
+  const stopImpersonating = useCallback(() => {
+      localStorage.removeItem('pulse_impersonate_id');
+      window.location.reload();
+  }, []);
 
   const register = useCallback(async (data: {
     email: string;
@@ -93,12 +134,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const decoded = decodeToken(result.token);
     const u = decoded || result.user;
     setUser(u);
+    setRealUser(u);
     const dest = u?.role === 'va' ? '/va/tasks' : u?.role === 'client' ? '/client/dashboard' : '/app/dashboard';
     router.push(dest);
   }, [router]);
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, logout, register }}>
+    <AuthContext.Provider value={{ 
+        user, realUser, isImpersonating, token, isLoading, 
+        login, logout, register, impersonate, stopImpersonating 
+    }}>
       {children}
     </AuthContext.Provider>
   );

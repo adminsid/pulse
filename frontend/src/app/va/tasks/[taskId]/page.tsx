@@ -1,146 +1,169 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useTimer } from '@/hooks/useTimer';
-import { useCheckins } from '@/hooks/useCheckins';
 import type { Task } from '@/lib/types';
 import TimerWidget from '@/components/TimerWidget';
-import CheckinModal from '@/components/CheckinModal';
 import StatusPill from '@/components/ui/StatusPill';
-import InlineBanner from '@/components/ui/InlineBanner';
 
-export default function VATaskDetailPage() {
-  const { taskId } = useParams<{ taskId: string }>();
+export default function TaskDetailPage() {
+  const params = useParams();
+  const taskId = params?.taskId as string;
+  const router = useRouter();
+  
   const [task, setTask] = useState<Task | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [stopNote, setStopNote] = useState('');
-  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
-
   const { timerSession, elapsedSeconds, start, pause, resume, stop } = useTimer();
-  const { pendingCheckins, respond } = useCheckins();
 
   const loadTask = useCallback(async () => {
+    if (!taskId) return;
     setIsLoading(true);
-    try { setTask(await api.tasks.get(taskId)); }
-    catch { setTask(null); } finally { setIsLoading(false); }
+    try {
+      const data = await api.tasks.get(taskId);
+      setTask(data);
+    } catch { 
+      setTask(null); 
+    } finally { 
+      setIsLoading(false); 
+    }
   }, [taskId]);
 
   useEffect(() => { loadTask(); }, [loadTask]);
 
-  const isOnThisTask = timerSession?.task_id === taskId;
-  const isRunning = isOnThisTask && timerSession?.state === 'running';
-  const isPaused = isOnThisTask && timerSession?.state === 'paused';
-  const hasActiveTimer = isRunning || isPaused;
+  const activeHere = timerSession?.task_id === taskId && timerSession.state !== 'stopped';
 
-  const handleStart = async () => {
-    setError('');
-    try { await start(taskId); }
-    catch (err) { setError(err instanceof Error ? err.message : 'Failed to start'); }
+  const handleUpdateStatus = async (status: string) => {
+    if (!taskId) return;
+    try {
+      await api.tasks.update(taskId, { status: status as any });
+      await loadTask();
+    } catch { }
   };
 
-  const handlePause = async () => {
-    setError('');
-    try { await pause(); }
-    catch (err) { setError(err instanceof Error ? err.message : 'Failed to pause'); }
-  };
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent" />
+      </div>
+    );
+  }
 
-  const handleResume = async () => {
-    setError('');
-    try { await resume(); }
-    catch (err) { setError(err instanceof Error ? err.message : 'Failed to resume'); }
-  };
-
-  const handleStop = async () => {
-    setError('');
-    try { await stop(stopNote || undefined); setStopNote(''); }
-    catch (err) { setError(err instanceof Error ? err.message : 'Failed to stop'); }
-  };
-
-  const currentCheckin = pendingCheckins.find((c) => !dismissedIds.has(c.id));
-
-  if (isLoading) return <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent" /></div>;
-  if (!task) return <div className="text-center py-12 text-muted">Task not found.</div>;
+  if (!task) {
+    return (
+      <div className="p-8 text-center text-muted">
+        <p>Task not found</p>
+        <button onClick={() => router.push('/va/tasks')} className="text-accent hover:underline mt-2">
+          Back to tasks
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-xl mx-auto">
-      {/* Task header */}
-      <div className="mb-6">
-        <div className="flex items-start gap-3 mb-2">
-          <h1 className="text-xl font-bold text-fg flex-1">{task.title}</h1>
-          <StatusPill kind="task" status={task.status} />
-        </div>
-        {task.description && <p className="text-sm text-muted">{task.description}</p>}
-        <div className="flex gap-3 mt-2 text-xs text-muted">
-          {task.assignee_name && <span>Assigned: {task.assignee_name}</span>}
-          {task.due_date && <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>}
-        </div>
-      </div>
+    <div className="max-w-2xl mx-auto">
+      <button 
+        onClick={() => router.back()} 
+        className="text-sm text-muted hover:text-fg mb-6 flex items-center gap-1 transition-colors"
+      >
+        ← Back to tasks
+      </button>
 
-      {error && (
-        <div className="mb-4">
-          <InlineBanner variant="warning">{error}</InlineBanner>
-        </div>
-      )}
-
-      {/* Timer controls */}
-      <div className="bg-card border border-border rounded-2xl p-6 flex flex-col items-center gap-5 mb-6">
-        {hasActiveTimer && timerSession ? (
-          <>
-            <TimerWidget session={timerSession} elapsedSeconds={elapsedSeconds} />
-            <div className="flex gap-3">
-              {isRunning && (
-                <button onClick={handlePause}
-                  className="px-5 py-2 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 text-amber-800 dark:text-amber-300 rounded-xl text-sm font-medium transition-colors">
-                  ⏸ Pause
-                </button>
-              )}
-              {isPaused && (
-                <button onClick={handleResume}
-                  className="px-5 py-2 bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-900/50 text-green-800 dark:text-green-300 rounded-xl text-sm font-medium transition-colors">
-                  ▶ Resume
-                </button>
-              )}
-              <button onClick={handleStop}
-                className="px-5 py-2 bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-800 dark:text-red-300 rounded-xl text-sm font-medium transition-colors">
-                ■ Stop
-              </button>
+      <div className="bg-card border border-border rounded-2xl p-6 lg:p-8 shadow-sm">
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-fg mb-2">{task.title}</h1>
+            <div className="flex gap-2">
+              <StatusPill kind="task" status={task.status} />
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                task.priority === 'high' ? 'bg-red-100 text-red-700 dark:bg-red-900/30' : 
+                task.priority === 'medium' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30' : 
+                'bg-slate-100 text-slate-600 dark:bg-slate-800'
+              }`}>
+                {task.priority} priority
+              </span>
             </div>
-            <div className="w-full">
-              <label className="block text-xs text-muted mb-1">Stop note (optional)</label>
-              <input type="text" value={stopNote} onChange={(e) => setStopNote(e.target.value)}
-                placeholder="e.g. Completed feature X"
-                className="w-full px-3 py-1.5 border border-border bg-bg text-fg rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent" />
-            </div>
-          </>
-        ) : timerSession && !isOnThisTask ? (
-          <div className="text-center">
-            <p className="text-sm text-muted mb-2">Timer is running on another task.</p>
-            <p className="text-xs text-muted">Stop that timer first before starting a new one.</p>
           </div>
-        ) : (
-          <>
-            <div className="text-5xl font-mono font-bold text-muted">00:00:00</div>
-            <p className="text-sm text-muted">No active timer</p>
-            {task.status !== 'done' && task.status !== 'canceled' && (
-              <button onClick={handleStart}
-                className="w-full bg-accent text-accent-fg py-2.5 rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity">
-                ▶ Start Timer
-              </button>
-            )}
-          </>
-        )}
-      </div>
+        </div>
 
-      {currentCheckin && (
-        <CheckinModal
-          checkin={currentCheckin}
-          onRespond={respond}
-          onClose={() => setDismissedIds((prev) => { const s = new Set(prev); s.add(currentCheckin.id); return s; })}
-        />
-      )}
+        {task.description && (
+          <div className="mb-8">
+            <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-2">Description</h3>
+            <p className="text-fg text-sm leading-relaxed whitespace-pre-wrap">{task.description}</p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-8 mb-8 pt-6 border-t border-border">
+          <div>
+            <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-2">Sync Source</h3>
+            <p className="text-sm font-medium text-fg">{task.project_id ? 'Asana / Multiple' : 'Manual'}</p>
+          </div>
+          <div>
+            <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-2">Time Tracked</h3>
+            <p className="text-sm font-medium text-fg">
+              {Math.floor(task.tracked_seconds / 3600)}h {Math.floor((task.tracked_seconds % 3600) / 60)}m
+            </p>
+          </div>
+        </div>
+
+        {/* Timer Control Section */}
+        <div className="bg-muted-fg/5 rounded-xl p-6 border border-border flex flex-col items-center">
+          {activeHere ? (
+            <>
+              <TimerWidget session={timerSession!} elapsedSeconds={elapsedSeconds} />
+              <div className="flex gap-3 mt-6 w-full max-w-xs">
+                {timerSession!.state === 'running' ? (
+                  <button 
+                    onClick={() => pause()} 
+                    className="flex-1 bg-amber-500 text-white py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-amber-500/20 hover:bg-amber-600 transition-all"
+                  >
+                    Pause
+                  </button>
+                ) : (
+                  <button 
+                    onClick={() => resume()} 
+                    className="flex-1 bg-green-500 text-white py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-green-500/20 hover:bg-green-600 transition-all"
+                  >
+                    Resume
+                  </button>
+                )}
+                <button 
+                  onClick={() => stop()} 
+                  className="flex-1 bg-red-500 text-white py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-red-500/20 hover:bg-red-600 transition-all"
+                >
+                  Stop
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="text-center">
+              <p className="text-muted text-sm mb-4">No active timer for this task</p>
+              <button 
+                onClick={() => start(task.id)} 
+                className="bg-accent text-accent-fg px-8 py-3 rounded-xl font-bold text-sm hover:opacity-90 transition-all shadow-lg shadow-accent/20"
+              >
+                Start Tracking Time
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Status management */}
+        <div className="mt-8 flex gap-2 justify-center flex-wrap">
+          {['todo', 'in_progress', 'blocked', 'done'].map((s) => (
+            <button 
+              key={s} 
+              onClick={() => handleUpdateStatus(s)}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${
+                task.status === s ? 'bg-fg text-bg' : 'border border-border text-muted hover:text-fg hover:bg-muted-fg/10'
+              }`}
+            >
+              Set {s.replace('_', ' ')}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

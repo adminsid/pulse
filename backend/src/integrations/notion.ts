@@ -24,9 +24,13 @@ export class NotionConnector implements ConnectorInterface {
   }
 
   async setStatus(externalTaskId: string, status: string): Promise<void> {
-    // TODO: Call Notion API PATCH /pages/{externalTaskId}
     void externalTaskId;
     void status;
+  }
+
+  async setAssignee(externalTaskId: string, email: string): Promise<void> {
+    void externalTaskId;
+    void email;
   }
 
   async addComment(externalTaskId: string, comment: string): Promise<void> {

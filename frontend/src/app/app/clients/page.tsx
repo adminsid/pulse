@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import type { Client } from '@/lib/types';
+import DataTable from '@/components/ui/DataTable';
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -44,33 +45,16 @@ export default function ClientsPage() {
         </button>
       </div>
 
-      {isLoading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent" /></div>
-      ) : (
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="border-b border-border">
-              <tr>
-                {['Name', 'Contact Email', 'Created'].map((h) => (
-                  <th key={h} className="text-left py-3 px-4 font-medium text-muted text-xs uppercase tracking-wide">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {clients.length === 0 ? (
-                <tr><td colSpan={3} className="text-center py-8 text-muted">No clients yet.</td></tr>
-              ) : clients.map((c) => (
-                <tr key={c.id} className="border-b border-border hover:bg-muted-fg/20 cursor-pointer transition-colors"
-                  onClick={() => router.push(`/app/clients/${c.id}`)}>
-                  <td className="py-3 px-4 font-medium text-fg">{c.name}</td>
-                  <td className="py-3 px-4 text-muted">{c.contact_email || '—'}</td>
-                  <td className="py-3 px-4 text-muted text-xs">{new Date(c.created_at).toLocaleDateString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataTable<Client>
+        data={clients}
+        isLoading={isLoading}
+        onRowClick={(c) => router.push(`/app/clients/${c.id}`)}
+        columns={[
+          { header: 'Client Name', accessor: 'name', className: 'font-semibold text-fg' },
+          { header: 'Contact Email', accessor: 'contact_email', className: 'text-muted' },
+          { header: 'Created', accessor: (c) => <span className="text-xs text-muted">{new Date(c.created_at).toLocaleDateString()}</span> },
+        ]}
+      />
 
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

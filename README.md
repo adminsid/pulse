@@ -148,8 +148,16 @@ Authorization: Bearer <jwt>
 |--------|------|-------------|
 | GET | /api/projects/:projectId/tasks | List tasks |
 | GET | /api/tasks/:id | Get task |
-| PUT | /api/tasks/:id/status | Update task status |
-| POST | /api/tasks | Create task |
+| PUT | /api/tasks/:id | Update task (status, assignee, goal, etc.) |
+| POST | /api/tasks | Create task manually |
+
+### Goals (Admin / Manager only)
+
+| Method | Path | Description |
+|--------|-------------|------------------------------------------|
+| GET | /api/projects/:projectId/goals | List project goals with progress rollup |
+| POST | /api/goals | Create project goal |
+| POST | /api/goals/:id | Update goal data |
 
 ### Timer
 
@@ -189,6 +197,7 @@ interface ConnectorInterface {
   listTasks(containerId: string): Promise<ExternalTask[]>;
   upsertTask(task: ExternalTask): Promise<void>;
   setStatus(externalTaskId: string, status: string): Promise<void>;
+  setAssignee(externalTaskId: string, email: string): Promise<void>;
   addComment(externalTaskId: string, comment: string): Promise<void>;
 }
 ```

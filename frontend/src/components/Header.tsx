@@ -24,7 +24,7 @@ const roleBadgeColor: Record<string, string> = {
 };
 
 export default function Header() {
-  const { user } = useAuth();
+  const { user, realUser, isImpersonating, stopImpersonating } = useAuth();
   const pathname = usePathname();
   const { timerSession, elapsedSeconds } = useTimer();
   const { wsStatus } = useWebSocket();
@@ -48,76 +48,92 @@ export default function Header() {
   const showTimer = user?.role === 'va' && timerSession && timerSession.state !== 'stopped';
 
   return (
-    <header className="bg-card border-b border-border px-4 lg:px-6 py-3 flex items-center justify-between shrink-0 gap-3">
-      {/* Page title — offset on mobile to avoid hamburger */}
-      <h2 className="text-base lg:text-lg font-semibold text-fg pl-8 lg:pl-0">
-        {getPageTitle(pathname)}
-      </h2>
-
-      {/* Timer widget (VA only) */}
-      {showTimer && timerSession && (
-        <div className="flex-1 flex justify-center">
-          <TimerWidget session={timerSession} elapsedSeconds={elapsedSeconds} compact />
+    <div className="flex flex-col shrink-0">
+      {isImpersonating && (
+        <div className="bg-amber-500 text-amber-950 px-4 py-1.5 text-xs font-bold flex items-center justify-between">
+          <span>
+            Impersonating <strong>{user?.full_name}</strong> ({user?.role}). 
+            Logged in as <strong>{realUser?.full_name}</strong>.
+          </span>
+          <button 
+            onClick={stopImpersonating}
+            className="bg-amber-950 text-amber-50 px-3 py-0.5 rounded-full hover:bg-black transition-colors"
+          >
+            Stop Impersonating
+          </button>
         </div>
       )}
+      <header className="bg-card border-b border-border px-4 lg:px-6 py-3 flex items-center justify-between shrink-0 gap-3">
+        {/* Page title — offset on mobile to avoid hamburger */}
+        <h2 className="text-base lg:text-lg font-semibold text-fg pl-8 lg:pl-0">
+          {getPageTitle(pathname)}
+        </h2>
 
-      <div className="flex items-center gap-2 shrink-0">
-        {/* WS live indicator */}
-        {user && (
-          <div
-            aria-label={wsStatus === 'connected' ? 'Live' : wsStatus === 'connecting' ? 'Reconnecting' : 'Disconnected'}
-            title={wsStatus === 'connected' ? 'Live' : wsStatus === 'connecting' ? 'Reconnecting…' : 'Disconnected'}
-            className="flex items-center gap-1.5"
-          >
-            <span
-              className={`w-2 h-2 rounded-full ${
-                wsStatus === 'connected'
-                  ? 'bg-green-500 animate-pulse'
-                  : wsStatus === 'connecting'
-                  ? 'bg-amber-400 animate-pulse'
-                  : 'bg-slate-400'
-              }`}
-            />
-            {wsStatus !== 'connected' && (
-              <span className="text-xs text-amber-600 dark:text-amber-400 font-medium hidden sm:block">
-                {wsStatus === 'connecting' ? 'Reconnecting…' : 'Offline'}
-              </span>
-            )}
+        {/* Timer widget (VA only) */}
+        {showTimer && timerSession && (
+          <div className="flex-1 flex justify-center">
+            <TimerWidget session={timerSession} elapsedSeconds={elapsedSeconds} compact />
           </div>
         )}
 
-        {/* Dark mode toggle */}
-        <button
-          onClick={toggleDark}
-          aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
-          className="p-1.5 rounded-lg text-muted hover:text-fg hover:bg-muted-fg transition-colors"
-        >
-          {dark ? (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="5"/>
-              <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-            </svg>
-          ) : (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-            </svg>
-          )}
-        </button>
-
-        {/* User info */}
-        {user && (
-          <div className="flex items-center gap-2">
-            <span
-              className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${
-                roleBadgeColor[user.role] || 'bg-slate-100 text-slate-700'
-              }`}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* WS live indicator */}
+          {user && (
+            <div
+              aria-label={wsStatus === 'connected' ? 'Live' : wsStatus === 'connecting' ? 'Reconnecting' : 'Disconnected'}
+              title={wsStatus === 'connected' ? 'Live' : wsStatus === 'connecting' ? 'Reconnecting…' : 'Disconnected'}
+              className="flex items-center gap-1.5"
             >
-              {user.role}
-            </span>
-            <span className="text-sm text-fg font-medium hidden sm:block">{user.full_name}</span>
-          </div>
-        )}
-      </div>
-    </header>
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  wsStatus === 'connected'
+                    ? 'bg-green-500 animate-pulse'
+                    : wsStatus === 'connecting'
+                    ? 'bg-amber-400 animate-pulse'
+                    : 'bg-slate-400'
+                }`}
+              />
+              {wsStatus !== 'connected' && (
+                <span className="text-xs text-amber-600 dark:text-amber-400 font-medium hidden sm:block">
+                  {wsStatus === 'connecting' ? 'Reconnecting…' : 'Offline'}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Dark mode toggle */}
+          <button
+            onClick={toggleDark}
+            aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+            className="p-1.5 rounded-lg text-muted hover:text-fg hover:bg-muted-fg transition-colors"
+          >
+            {dark ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="5"/>
+                <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+              </svg>
+            )}
+          </button>
+
+          {/* User info */}
+          {user && (
+            <div className="flex items-center gap-2">
+              <span
+                className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${
+                  roleBadgeColor[user.role] || 'bg-slate-100 text-slate-700'
+                }`}
+              >
+                {user.role}
+              </span>
+              <span className="text-sm text-fg font-medium hidden sm:block">{user.full_name}</span>
+            </div>
+          )}
+        </div>
+      </header>
+    </div>
   );
 }

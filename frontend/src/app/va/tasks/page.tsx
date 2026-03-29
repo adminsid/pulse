@@ -6,8 +6,6 @@ import { api } from '@/lib/api';
 import { useTimer } from '@/hooks/useTimer';
 import type { Task } from '@/lib/types';
 import TaskCard from '@/components/TaskCard';
-import { useCheckins } from '@/hooks/useCheckins';
-import CheckinModal from '@/components/CheckinModal';
 
 const STATUS_FILTERS = ['all', 'todo', 'in_progress', 'blocked', 'done'];
 
@@ -17,8 +15,6 @@ export default function VATasksPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const { start } = useTimer();
   const router = useRouter();
-  const { pendingCheckins, respond } = useCheckins();
-  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
 
   const loadTasks = useCallback(async () => {
     setIsLoading(true);
@@ -36,7 +32,6 @@ export default function VATasksPage() {
   };
 
   const filtered = statusFilter === 'all' ? tasks : tasks.filter((t) => t.status === statusFilter);
-  const currentCheckin = pendingCheckins.find((c) => !dismissedIds.has(c.id));
 
   return (
     <div>
@@ -76,14 +71,7 @@ export default function VATasksPage() {
           ))}
         </div>
       )}
-
-      {currentCheckin && (
-        <CheckinModal
-          checkin={currentCheckin}
-          onRespond={respond}
-          onClose={() => setDismissedIds((prev) => { const s = new Set(prev); s.add(currentCheckin.id); return s; })}
-        />
-      )}
     </div>
   );
 }
+

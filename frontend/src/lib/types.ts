@@ -40,6 +40,9 @@ export interface Project {
 export interface Task {
   id: string;
   project_id: string;
+  goal_id?: string;
+  goal_title?: string;
+  goal_color?: string;
   title: string;
   description?: string;
   status: string;
@@ -48,6 +51,21 @@ export interface Task {
   tracked_seconds: number;
   priority: 'low' | 'medium' | 'high';
   due_date?: string;
+  created_at: string;
+}
+
+export interface Goal {
+  id: string;
+  project_id: string;
+  title: string;
+  description?: string;
+  color?: string;
+  deadline?: string;
+  status: 'active' | 'completed' | 'archived';
+  progress: number;
+  total_tasks: number;
+  completed_tasks: number;
+  tracked_seconds: number;
   created_at: string;
 }
 

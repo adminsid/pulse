@@ -1,20 +1,30 @@
 'use client';
 
 interface ExportButtonProps {
-  url: string;
+  data: any[];
+  columns: { header: string; key: string }[];
   filename?: string;
+  label?: string;
 }
 
-export default function ExportButton({ url, filename = 'timesheet.csv' }: ExportButtonProps) {
-  const handleExport = async () => {
+export default function ExportButton({ data, columns, filename = 'export.csv', label = 'Export CSV' }: ExportButtonProps) {
+  const handleExport = () => {
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('pulse_token') : null;
-      const res = await fetch(url, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      if (!data || data.length === 0) return;
+
+      // Create CSV content
+      const headers = columns.map(col => col.header).join(',');
+      const rows = data.map(item => {
+        return columns.map(col => {
+          const val = item[col.key] || '';
+          return typeof val === 'string' ? `"${val.replace(/"/g, '""')}"` : val;
+        }).join(',');
       });
-      if (!res.ok) throw new Error('Export failed');
-      const blob = await res.blob();
+      
+      const csvContent = [headers, ...rows].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const objectUrl = URL.createObjectURL(blob);
+      
       const a = document.createElement('a');
       a.href = objectUrl;
       a.download = filename;
@@ -33,7 +43,8 @@ export default function ExportButton({ url, filename = 'timesheet.csv' }: Export
       className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
     >
       <span>↓</span>
-      Export CSV
+      {label}
     </button>
   );
 }
+

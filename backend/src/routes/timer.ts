@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { PoolClient } from 'pg';
 import pool from '../db';
 import { requireAuth } from '../auth/middleware';
-import { broadcast } from '../websocket/server';
+import { broadcast, broadcastToWorkspace } from '../websocket/server';
 
 const router = Router();
 
@@ -92,7 +92,9 @@ router.post('/start', async (req: Request, res: Response): Promise<void> => {
 
     await client.query('COMMIT');
 
-    broadcast(userId, { type: 'timer_state_changed', data: session });
+    const event = { type: 'timer_state_changed' as const, data: session };
+    broadcast(userId, event);
+    broadcastToWorkspace(req.user!.workspace_id, event, userId);
     res.status(201).json(session);
   } catch (err: unknown) {
     await client.query('ROLLBACK');
@@ -127,7 +129,9 @@ router.post('/pause', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    broadcast(userId, { type: 'timer_state_changed', data: result.rows[0] });
+    const event = { type: 'timer_state_changed' as const, data: result.rows[0] };
+    broadcast(userId, event);
+    broadcastToWorkspace(req.user!.workspace_id, event, userId);
     res.json(result.rows[0]);
   } catch {
     res.status(500).json({ error: 'Failed to pause timer' });
@@ -153,7 +157,9 @@ router.post('/resume', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    broadcast(userId, { type: 'timer_state_changed', data: result.rows[0] });
+    const event = { type: 'timer_state_changed' as const, data: result.rows[0] };
+    broadcast(userId, event);
+    broadcastToWorkspace(req.user!.workspace_id, event, userId);
     res.json(result.rows[0]);
   } catch {
     res.status(500).json({ error: 'Failed to resume timer' });
@@ -215,7 +221,9 @@ router.post('/stop', async (req: Request, res: Response): Promise<void> => {
 
     await client.query('COMMIT');
 
-    broadcast(userId, { type: 'timer_state_changed', data: sessionResult.rows[0] });
+    const event = { type: 'timer_state_changed' as const, data: sessionResult.rows[0] };
+    broadcast(userId, event);
+    broadcastToWorkspace(req.user!.workspace_id, event, userId);
     res.json({ session: sessionResult.rows[0], time_entry: entryResult.rows[0] });
   } catch {
     await client.query('ROLLBACK');

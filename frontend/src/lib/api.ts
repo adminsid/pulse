@@ -15,6 +15,11 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
+  if (typeof window !== 'undefined') {
+    const impId = localStorage.getItem('pulse_impersonate_id');
+    if (impId) headers['X-Impersonate-User'] = impId;
+  }
+
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
@@ -99,10 +104,18 @@ export const api = {
         return [] as import('./types').Task[];
       }),
     get: (id: string) => apiFetch<import('./types').Task>(`/api/tasks/${id}`),
-    setStatus: (id: string, status: string) =>
-      apiFetch<import('./types').Task>(`/api/tasks/${id}/status`, {
+    update: (id: string, data: {
+      status?: string;
+      assignee_user_id?: string;
+      goal_id?: string | null;
+      title?: string;
+      description?: string;
+      due_date?: string;
+      priority?: string;
+    }) =>
+      apiFetch<import('./types').Task>(`/api/tasks/${id}`, {
         method: 'PUT',
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(data),
       }),
     create: (data: {
       project_id: string;
@@ -110,6 +123,7 @@ export const api = {
       description?: string;
       assignee_user_id?: string;
       priority?: string;
+      goal_id?: string;
     }) =>
       apiFetch<import('./types').Task>('/api/tasks', {
         method: 'POST',
@@ -194,6 +208,20 @@ export const api = {
       apiFetch<{ message: string }>(`/api/integrations/projects/${projectId}/sync`, {
         method: 'POST',
         body: JSON.stringify({}),
+      }),
+  },
+  goals: {
+    list: (projectId: string) =>
+      apiFetch<import('./types').Goal[]>(`/api/projects/${projectId}/goals`),
+    create: (data: { project_id: string; title: string; description?: string; color?: string; deadline?: string }) =>
+      apiFetch<import('./types').Goal>('/api/goals', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (id: string, data: Partial<import('./types').Goal>) =>
+      apiFetch<import('./types').Goal>(`/api/goals/${id}`, {
+        method: 'POST',
+        body: JSON.stringify(data),
       }),
   },
 };

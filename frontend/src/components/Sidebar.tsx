@@ -36,40 +36,13 @@ const navByRole: Record<string, NavItem[]> = {
   ],
 };
 
-// Keep legacy paths working for existing smoke tests
-const legacyNavByRole: Record<string, NavItem[]> = {
-  admin: [
-    { label: 'Dashboard', href: '/dashboard' },
-    { label: 'Users', href: '/dashboard/admin/users' },
-    { label: 'Clients', href: '/dashboard/admin/clients' },
-    { label: 'Projects', href: '/dashboard/admin/projects' },
-    { label: 'Integrations', href: '/dashboard/admin/integrations' },
-    { label: 'Live Monitor', href: '/dashboard/manager/monitor' },
-    { label: 'Timesheets', href: '/dashboard/manager/timesheets' },
-  ],
-  manager: [
-    { label: 'Live Monitor', href: '/dashboard/manager/monitor' },
-    { label: 'Timesheets', href: '/dashboard/manager/timesheets' },
-    { label: 'Projects', href: '/dashboard/admin/projects' },
-  ],
-  va: [
-    { label: 'My Tasks', href: '/dashboard/va/tasks' },
-    { label: 'Timer', href: '/dashboard/va/timer' },
-  ],
-  client: [
-    { label: 'Dashboard', href: '/dashboard/client/dashboard' },
-  ],
-};
-
 export default function Sidebar() {
   const { user, logout } = useAuth();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const role = user?.role || 'va';
-  // Use canonical routes if on canonical paths, else legacy
-  const isCanonical = pathname.startsWith('/app') || pathname.startsWith('/va') || pathname.startsWith('/client');
-  const navItems = isCanonical ? (navByRole[role] || []) : (legacyNavByRole[role] || navByRole[role] || []);
+  const navItems = navByRole[role] || [];
 
   const NavLinks = () => (
     <>

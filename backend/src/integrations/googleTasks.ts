@@ -29,6 +29,11 @@ export class GoogleTasksConnector implements ConnectorInterface {
     void status;
   }
 
+  async setAssignee(externalTaskId: string, email: string): Promise<void> {
+    void externalTaskId;
+    void email;
+  }
+
   async addComment(externalTaskId: string, comment: string): Promise<void> {
     // TODO: Google Tasks API does not support comments natively; stub for future
     void externalTaskId;

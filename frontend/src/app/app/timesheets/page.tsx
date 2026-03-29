@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api';
 import type { TimeEntry, User, Project } from '@/lib/types';
 import ExportButton from '@/components/ExportButton';
+import DataTable from '@/components/ui/DataTable';
 
 function formatSeconds(s: number): string {
   const h = Math.floor(s / 3600);
@@ -44,31 +45,44 @@ export default function TimesheetsPage() {
   useEffect(() => { loadEntries(); }, [loadEntries]);
 
   const totalSeconds = entries.reduce((s, e) => s + e.seconds, 0);
-  const exportParams: Record<string, string> = {};
-  if (dateFrom) exportParams.date_from = dateFrom;
-  if (dateTo) exportParams.date_to = dateTo;
-  if (userId) exportParams.user_id = userId;
-  if (projectId) exportParams.project_id = projectId;
+
+  const exportColumns = [
+    { header: 'Date', key: 'date' },
+    { header: 'User', key: 'user_name' },
+    { header: 'Task', key: 'task_title' },
+    { header: 'Project', key: 'project_name' },
+    { header: 'Seconds', key: 'seconds' },
+    { header: 'Note', key: 'note' },
+  ];
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-fg">Timesheets</h1>
-        <ExportButton url={api.reports.exportCsvUrl(exportParams)} filename="timesheet.csv" />
+        <div className="flex gap-2">
+          <button onClick={() => window.print()} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition-colors border border-slate-200 flex items-center gap-2">
+            <span>⎙</span> Print PDF
+          </button>
+          <ExportButton 
+            data={entries} 
+            columns={exportColumns} 
+            filename={`timesheet_${dateFrom}_to_${dateTo}.csv`} 
+          />
+        </div>
       </div>
 
-      <div className="bg-card border border-border rounded-xl p-4 mb-6">
+      <div className="bg-card border border-border rounded-xl p-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: 'From', value: dateFrom, onChange: setDateFrom, type: 'date' as const },
-            { label: 'To', value: dateTo, onChange: setDateTo, type: 'date' as const },
-          ].map(({ label, value, onChange, type }) => (
-            <div key={label}>
-              <label className="block text-xs font-medium text-muted mb-1">{label}</label>
-              <input type={type} value={value} onChange={(e) => onChange(e.target.value)}
-                className="w-full px-3 py-1.5 border border-border bg-bg text-fg rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent" />
-            </div>
-          ))}
+          <div>
+            <label className="block text-xs font-medium text-muted mb-1">From</label>
+            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+              className="w-full px-3 py-1.5 border border-border bg-bg text-fg rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted mb-1">To</label>
+            <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+              className="w-full px-3 py-1.5 border border-border bg-bg text-fg rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent" />
+          </div>
           <div>
             <label className="block text-xs font-medium text-muted mb-1">User</label>
             <select value={userId} onChange={(e) => setUserId(e.target.value)}
@@ -95,35 +109,19 @@ export default function TimesheetsPage() {
         </div>
       )}
 
-      {isLoading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent" /></div>
-      ) : (
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="border-b border-border">
-              <tr>
-                {['Date', 'User', 'Task', 'Project', 'Duration', 'Note'].map((h) => (
-                  <th key={h} className="text-left py-3 px-4 font-medium text-muted text-xs uppercase tracking-wide">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {entries.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-8 text-muted">No entries found.</td></tr>
-              ) : entries.map((e) => (
-                <tr key={e.id} className="border-b border-border hover:bg-muted-fg/20 transition-colors">
-                  <td className="py-3 px-4 text-muted text-xs">{e.date}</td>
-                  <td className="py-3 px-4 font-medium text-fg">{e.user_name}</td>
-                  <td className="py-3 px-4 text-fg max-w-[180px] truncate">{e.task_title}</td>
-                  <td className="py-3 px-4 text-muted">{e.project_name}</td>
-                  <td className="py-3 px-4 font-mono text-fg">{formatSeconds(e.seconds)}</td>
-                  <td className="py-3 px-4 text-muted text-xs max-w-[120px] truncate">{e.note || '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataTable
+        data={entries}
+        isLoading={isLoading}
+        columns={[
+          { header: 'Date', accessor: 'date', className: 'text-xs text-muted' },
+          { header: 'User', accessor: 'user_name', className: 'font-medium' },
+          { header: 'Task', accessor: 'task_title', className: 'max-w-[200px] truncate' },
+          { header: 'Project', accessor: 'project_name', className: 'text-muted' },
+          { header: 'Duration', accessor: (e) => <span className="font-mono">{formatSeconds(e.seconds)}</span> },
+          { header: 'Note', accessor: (e) => <span className="text-xs text-muted italic">{e.note || '—'}</span> },
+        ]}
+      />
     </div>
   );
 }
+

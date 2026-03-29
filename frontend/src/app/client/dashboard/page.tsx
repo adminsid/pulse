@@ -6,6 +6,7 @@ import { useWebSocket } from '@/contexts/WebSocketContext';
 import type { Project, Task, ComplianceMetric } from '@/lib/types';
 import MetricCard from '@/components/ui/MetricCard';
 import StatusPill from '@/components/ui/StatusPill';
+import DataTable from '@/components/ui/DataTable';
 
 function relativeTime(iso: string): string {
   const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -72,38 +73,32 @@ export default function ClientDashboardPage() {
       {compliance.length > 0 && (
         <div className="mb-8">
           <h2 className="text-sm font-semibold text-muted uppercase tracking-wide mb-3">Team Compliance</h2>
-          <div className="bg-card border border-border rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="border-b border-border">
-                <tr>
-                  {['VA', 'Status', 'Current task', 'Last check-in', 'Missed (today)'].map((h) => (
-                    <th key={h} className="text-left py-3 px-4 font-medium text-muted text-xs uppercase tracking-wide">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {compliance.map((m) => (
-                  <tr key={m.user_id} className="border-b border-border hover:bg-muted-fg/20 transition-colors">
-                    <td className="py-3 px-4 font-medium text-fg">{m.user_name}</td>
-                    <td className="py-3 px-4">
-                      <StatusPill kind="presence" status={m.current_status === 'running' ? 'working' : 'break'} />
-                    </td>
-                    <td className="py-3 px-4 text-muted max-w-[160px] truncate">{m.current_task}</td>
-                    <td className="py-3 px-4 text-muted text-xs">
-                      {m.last_checkin_at ? relativeTime(m.last_checkin_at) : '—'}
-                    </td>
-                    <td className="py-3 px-4">
-                      {m.missed_checkins_24h > 0 ? (
-                        <span className="text-xs font-bold text-amber-600 dark:text-amber-400">{m.missed_checkins_24h} missed</span>
-                      ) : (
-                        <span className="text-xs text-green-600 dark:text-green-400">✓ All clear</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable<ComplianceMetric>
+            data={compliance}
+            rowKey="user_id"
+            columns={[
+              { header: 'VA', accessor: 'user_name', className: 'font-medium text-fg' },
+              { 
+                header: 'Status', 
+                accessor: (m) => <StatusPill kind="presence" status={m.current_status === 'running' ? 'working' : 'break'} /> 
+              },
+              { header: 'Current Task', accessor: 'current_task', className: 'text-muted max-w-[160px] truncate' },
+              { 
+                header: 'Last Check-in', 
+                accessor: (m) => <span className="text-muted text-xs">{m.last_checkin_at ? relativeTime(m.last_checkin_at) : '—'}</span> 
+              },
+              { 
+                header: 'Missed (Today)', 
+                accessor: (m) => (
+                  m.missed_checkins_24h > 0 ? (
+                    <span className="text-xs font-bold text-amber-600 dark:text-amber-400">{m.missed_checkins_24h} missed</span>
+                  ) : (
+                    <span className="text-xs text-green-600 dark:text-green-400">✓ All clear</span>
+                  )
+                ) 
+              },
+            ]}
+          />
         </div>
       )}
 
